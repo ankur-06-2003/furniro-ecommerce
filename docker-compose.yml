@@ -1,0 +1,68 @@
+version: '3.8'
+
+services:
+  # MongoDB Database
+  mongodb:
+    image: mongo:latest
+    container_name: furniro-mongo
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_DATABASE: furniro
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - furniro-network
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/furniro --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backend API Service
+  backend:
+    build:
+      context: ./backend
+      dockerfile: dockerfile
+    container_name: furniro-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - NODE_ENV=production
+      - PORT=8000
+      - MONGODB_URI=mongodb://mongodb:27017/furniro
+      - JWT_SECRET=2G6q6Cer1iDaUPEGFkAiXKWu9MZRzoG8iWrlFcA48U4=
+      - FRONTEND_URL=http://localhost:3000
+      - CLOUDINARY_CLOUD_NAME=round-centaur-477210-k3
+      - CLOUDINARY_API_KEY=furniro-bucket-3
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - furniro-network
+    restart: unless-stopped
+
+  # Frontend Application
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: dockerfile
+    container_name: furniro-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_BASE_URL=http://localhost:8000
+      - NEXT_PUBLIC_API_URL=http://localhost:8000/api
+    depends_on:
+      - backend
+    networks:
+      - furniro-network
+    restart: unless-stopped
+
+networks:
+  furniro-network:
+    driver: bridge
+
+volumes:
+  mongodb_data:
+    driver: local
