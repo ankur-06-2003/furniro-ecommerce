@@ -3,6 +3,8 @@ import cookieParser from "cookie-parser";
 import cors from "cors";
 import dotenv from "dotenv";
 import connectDB from "./src/config/db.js";
+import register from "./src/config/prometheus.js";
+import { metricsMiddleware } from "./src/middlewares/metrics.js";
 
 import authRoutes from "./src/routes/auth.routes.js";
 import categoryRoutes from "./src/routes/category.routes.js";
@@ -20,10 +22,8 @@ const corsOptions = {
   origin: function (origin, callback) {
     const allowedOrigins = [
       process.env.FRONTEND_URL || "http://localhost:3000",
-      "http://localhost:3000",
-      "http://localhost:3001",
-      "http://127.0.0.1:3000",
-      "http://127.0.0.1:3001",
+      "http://localhost:8000",
+      
     ];
     
     if (!origin || allowedOrigins.includes(origin)) {
@@ -43,6 +43,13 @@ const corsOptions = {
 server.use(express.json({ limit: "50mb" }));
 server.use(cookieParser());
 server.use(cors(corsOptions));
+server.use(metricsMiddleware);
+
+// Prometheus metrics endpoint
+server.get("/metrics", async (req, res) => {
+  res.set("Content-Type", register.contentType);
+  res.end(await register.metrics());
+});
 
 // DB Connection
 connectDB();

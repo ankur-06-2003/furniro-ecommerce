@@ -1,31 +1,19 @@
+# Create entrypoint script for seeding and starting server
 #!/bin/sh
 set -e
 
 echo "Waiting for MongoDB to be ready..."
-
-MAX_RETRIES=30
-COUNT=0
-
-until node -e "
-const mongoose = require('mongoose');
-mongoose.connect(
-  process.env.MONGODB_URI || 'mongodb://mongo:27017/furniro'
-).then(() => process.exit(0)).catch(() => process.exit(1));
-"; do
-  COUNT=$((COUNT + 1))
-  if [ "$COUNT" -ge "$MAX_RETRIES" ]; then
-    echo "MongoDB not ready after $MAX_RETRIES attempts. Exiting."
-    exit 1
+for i in $(seq 1 30); do
+  if node -e "const m = require('mongoose'); m.connect(process.env.MONGODB_URI || 'mongodb://mongo:27017/furniro').then(() => process.exit(0)).catch(() => process.exit(1))" 2>/dev/null; then
+    echo "MongoDB is ready!"
+    break
   fi
-  echo "Attempt $COUNT/$MAX_RETRIES: MongoDB not ready, waiting..."
+  echo "Attempt $i/30: MongoDB not ready, waiting..."
   sleep 2
 done
 
-echo "MongoDB is ready!"
-
 echo "Seeding database..."
-node seed.js || echo "Seeding skipped (already seeded or failed)"
+node seed.js || echo "Seeding failed or already seeded"
 
 echo "Starting server..."
-exec npm start
-EOF
+npm start
