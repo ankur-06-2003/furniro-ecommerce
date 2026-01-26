@@ -78,7 +78,7 @@ CLOUDINARY_API_SECRET=
 ### 1️⃣ Clone the Repository
 
 ```bash
-[git clone https://github.com/mdshakerullahS/Furniro.git](https://github.com/ankur-06-2003/furniro-ecommerce.git)
+git clone https://github.com/ankur-06-2003/furniro-ecommerce.git
 cd furniro-ecommerce
 ```
 
