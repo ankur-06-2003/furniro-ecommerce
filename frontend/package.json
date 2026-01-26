@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint"
   },
-  "author": "Md Shakerullah Sourov",
+  "author": "Ankur",
   "license": "MIT",
   "description": "Frontend for Furniro",
   "dependencies": {

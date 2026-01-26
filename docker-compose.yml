@@ -1,9 +1,8 @@
 version: '3.8'
 
 services:
-  # MongoDB Database
   mongodb:
-    image: mongo:latest
+    image: us-central1-docker.pkg.dev/round-centaur-477210-k3/ankur/mongo:latest
     container_name: furniro-mongo
     ports:
       - "27017:27017"
@@ -19,22 +18,14 @@ services:
       timeout: 5s
       retries: 5
 
-  # Backend API Service
   backend:
     build:
       context: ./backend
-      dockerfile: dockerfile
+      dockerfile: Dockerfile
+    image: us-central1-docker.pkg.dev/round-centaur-477210-k3/ankur/backend:1.0
     container_name: furniro-backend
     ports:
       - "8000:8000"
-    environment:
-      - NODE_ENV=production
-      - PORT=8000
-      - MONGODB_URI=mongodb://mongodb:27017/furniro
-      - JWT_SECRET=2G6q6Cer1iDaUPEGFkAiXKWu9MZRzoG8iWrlFcA48U4=
-      - FRONTEND_URL=http://localhost:3000
-      - CLOUDINARY_CLOUD_NAME=round-centaur-477210-k3
-      - CLOUDINARY_API_KEY=furniro-bucket-3
     depends_on:
       mongodb:
         condition: service_healthy
@@ -42,11 +33,11 @@ services:
       - furniro-network
     restart: unless-stopped
 
-  # Frontend Application
   frontend:
     build:
       context: ./frontend
-      dockerfile: dockerfile
+      dockerfile: Dockerfile
+    image: us-central1-docker.pkg.dev/round-centaur-477210-k3/ankur/frontend:1.0
     container_name: furniro-frontend
     ports:
       - "3000:3000"
