@@ -68,8 +68,7 @@ CLOUDINARY_CLOUD_NAME=
 CLOUDINARY_API_KEY=
 CLOUDINARY_API_SECRET=
 
-BREVO_API_KEY=
-EMAIL_USER=
+
 ```
 
 ---
@@ -79,8 +78,8 @@ EMAIL_USER=
 ### 1️⃣ Clone the Repository
 
 ```bash
-git clone https://github.com/mdshakerullahS/Furniro.git
-cd furniro
+[git clone https://github.com/mdshakerullahS/Furniro.git](https://github.com/ankur-06-2003/furniro-ecommerce.git)
+cd furniro-ecommerce
 ```
 
 ---
@@ -154,14 +153,6 @@ NEXT_PUBLIC_API_URL
 - Email verification after registration
 
 ---
-
-## 🧑‍💻 Developer
-
-**Md Shakerullah Sourov**
-Full Stack Developer
-
-- LinkedIn: [https://linkedin.com/in/mdshakerullah](https://linkedin.com/in/mdshakerullah)
-- Email: [sourovmdshakerullah@gmail.com](mailto:sourovmdshakerullah@gmail.com)
 
 ---
 
