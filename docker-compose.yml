@@ -1,49 +1,52 @@
-version: '3.8'
-
+version: "3.9"
 services:
   mongodb:
-    image: mongo:latest
+    image: mongo:8.0
     container_name: furniro-mongo
+    command: [ "mongod", "--bind_ip_all" ]
     ports:
       - "27017:27017"
-    environment:
-      MONGO_INITDB_DATABASE: furniro
     volumes:
       - mongodb_data:/data/db
     networks:
       - furniro-network
-    healthcheck:
-      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/furniro --quiet
-      interval: 10s
-      timeout: 5s
-      retries: 5
+    environment:
+      MONGO_INITDB_DATABASE: "furniro"
+    restart: unless-stopped
+    # healthcheck:
+    #   test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+    #   interval: 10s
+    #   timeout: 5s
+    #   retries: 10
+
 
   backend:
+  
     build:
       context: ./backend
       dockerfile: Dockerfile
-    image: us-central1-docker.pkg.dev/round-centaur-477210-k3/ankur/backend:1.0
     container_name: furniro-backend
     ports:
       - "8000:8000"
+    environment:
+      MONGODB_URI: mongodb://mongodb:27017/furniro
+      NODE_ENV: production
     depends_on:
-      mongodb:
-        condition: service_healthy
+      - mongodb
     networks:
       - furniro-network
     restart: unless-stopped
 
   frontend:
+
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    image: us-central1-docker.pkg.dev/round-centaur-477210-k3/ankur/frontend:1.0
     container_name: furniro-frontend
     ports:
       - "3000:3000"
     environment:
-      - NEXT_PUBLIC_BASE_URL=http://localhost:8000
-      - NEXT_PUBLIC_API_URL=http://localhost:8000/api
+      NEXT_PUBLIC_API_URL: http://localhost:8000/api
     depends_on:
       - backend
     networks:
@@ -56,4 +59,3 @@ networks:
 
 volumes:
   mongodb_data:
-    driver: local

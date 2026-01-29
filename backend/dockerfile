@@ -13,9 +13,7 @@ COPY . .
 
 # Expose port
 EXPOSE 8000
-
-# Use the repository entrypoint (so it can be edited without rebuilding the inline script)
-COPY entrypoint.sh /app/entrypoint.sh
-RUN chmod +x /app/entrypoint.sh
-ENTRYPOINT ["/app/entrypoint.sh"]
+CMD [ "npm", "start" ]
+# RUN chmod +x /app/entrypoint.sh
+# ENTRYPOINT ["/app/entrypoint.sh"]
 
