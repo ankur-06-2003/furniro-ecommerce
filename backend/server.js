@@ -50,6 +50,9 @@ server.get("/metrics", async (req, res) => {
   res.set("Content-Type", register.contentType);
   res.end(await register.metrics());
 });
+// Health check endpoint
+server.get("/health", (_, res) => res.send("OK"));
+
 
 // DB Connection
 connectDB();
@@ -72,7 +75,7 @@ server.use((err, _, res, __) => {
 });
 
 // Server
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 8000;
 server.listen(PORT, "0.0.0.0", () =>
   console.log(`Server is running on http://localhost:${PORT}`),
 );
