@@ -13,10 +13,10 @@ const seedDatabase = async () => {
     console.log("✅ Connected to MongoDB");
 
     // Clear existing data
-    // await User.deleteMany({});
-    // await Category.deleteMany({});
-    // await Product.deleteMany({});
-    // console.log("🗑️  Cleared existing data");
+    await User.deleteMany({});
+    await Category.deleteMany({});
+    await Product.deleteMany({});
+    console.log("🗑️  Cleared existing data");
 
     // Create Categories
     const categories = await Category.insertMany([

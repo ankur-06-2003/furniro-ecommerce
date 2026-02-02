@@ -1,0 +1,186 @@
+pipeline {
+    agent any
+
+    environment {
+        // ===== GCP =====
+        GOOGLE_APPLICATION_CREDENTIALS = credentials('gcp-service-account')
+        GOOGLE_CLOUD_PROJECT = credentials('GCP-Project-ID')
+        REGION = "us-central1"
+        REPO   = "ankur"
+        GIT_USER_NAME = "ankur-06-2003"
+        GIT_REPO = "furniro-deployment"
+
+        // ===== IMAGES =====
+        BACKEND_IMAGE  = "furniro-backend"
+        FRONTEND_IMAGE = "furniro-frontend"
+        IMAGE_TAG = "1.0.${BUILD_NUMBER}"
+
+        // ===== SECURITY / QUALITY =====
+        SCANNER_HOME = tool 'sonar-scanner'
+        GITHUB_TOKEN = credentials('github-token')
+        TOKEN_APP_NAME = "app-token"
+    }
+
+    stages {
+
+        // ================= CLEAN =================
+        stage('Clean Workspace') {
+            steps {
+                cleanWs()
+            }
+        }
+
+        // ================= CI REPO =================
+        stage('Checkout Application Repo') {
+            steps {
+                git branch: 'main',
+                    url: 'https://github.com/ankur-06-2003/furniro-ecommerce.git'
+            }
+        }
+
+        // ================= GCP AUTH =================
+        stage('Authenticate with GCP') {
+            steps {
+                sh '''
+                gcloud auth activate-service-account --key-file=${GOOGLE_APPLICATION_CREDENTIALS}
+                gcloud config set project ${GOOGLE_CLOUD_PROJECT}
+                gcloud auth configure-docker ${REGION}-docker.pkg.dev --quiet
+                '''
+            }
+        }
+
+        // ================= SECURITY SCANS =================
+        stage('Trivy Filesystem Scan') {
+            steps {
+                sh 'trivy fs .'
+            }
+        }
+
+        stage('SonarQube Analysis') {
+            steps {
+                withSonarQubeEnv('sonar-server') {
+                    sh '''
+                    ${SCANNER_HOME}/bin/sonar-scanner \
+                    -Dsonar.projectKey=furniro \
+                    -Dsonar.projectName=furniro
+                    '''
+                }
+            }
+        }
+
+        stage('Sonar Quality Gate') {
+            steps {
+                waitForQualityGate abortPipeline: false, credentialsId: 'Sonar-token'
+            }
+        }
+
+        stage('OWASP Dependency Check') {
+            steps {
+                dependencyCheck additionalArguments: '--scan ./ --disableNodeAudit',
+                                odcInstallation: 'DP-Check'
+                dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
+            }
+        }
+
+        // ================= BUILD =================
+        stage('Build Docker Images') {
+            steps {
+                sh '''
+                docker build -t ${BACKEND_IMAGE}:latest ./backend
+                docker build -t ${FRONTEND_IMAGE}:latest ./frontend
+                '''
+            }
+        }
+
+        // ================= PUSH =================
+        stage('Push Images to Artifact Registry') {
+            steps {
+                sh '''
+                # BACKEND
+                docker tag ${BACKEND_IMAGE}:latest \
+                ${REGION}-docker.pkg.dev/${GOOGLE_CLOUD_PROJECT}/${REPO}/${BACKEND_IMAGE}:${IMAGE_TAG}
+
+                docker push ${REGION}-docker.pkg.dev/${GOOGLE_CLOUD_PROJECT}/${REPO}/${BACKEND_IMAGE}:${IMAGE_TAG}
+
+                # FRONTEND
+                docker tag ${FRONTEND_IMAGE}:latest \
+                ${REGION}-docker.pkg.dev/${GOOGLE_CLOUD_PROJECT}/${REPO}/${FRONTEND_IMAGE}:${IMAGE_TAG}
+
+                docker push ${REGION}-docker.pkg.dev/${GOOGLE_CLOUD_PROJECT}/${REPO}/${FRONTEND_IMAGE}:${IMAGE_TAG}
+                '''
+            }
+        }
+
+        // ================= IMAGE SCAN =================
+        stage('Trivy Image Scan') {
+            steps {
+                sh '''
+                trivy image ${REGION}-docker.pkg.dev/${GOOGLE_CLOUD_PROJECT}/${REPO}/${BACKEND_IMAGE}:${IMAGE_TAG}
+                trivy image ${REGION}-docker.pkg.dev/${GOOGLE_CLOUD_PROJECT}/${REPO}/${FRONTEND_IMAGE}:${IMAGE_TAG}
+                '''
+            }
+        }
+
+        // ================= CLEAN LOCAL =================
+        stage('Cleanup Local Docker') {
+            steps {
+                sh '''
+                docker rmi ${BACKEND_IMAGE}:latest || true
+                docker rmi ${FRONTEND_IMAGE}:latest || true
+                docker system prune -f
+                '''
+            }
+        }
+
+        // ================= CD REPO =================
+        stage('Checkout Deployment Repo') {
+            steps {
+                cleanWs()
+                git branch: 'main',
+                    url: 'https://github.com/ankur-06-2003/furniro-deployment.git'
+            }
+        }
+
+        // ================= UPDATE YAML =================
+        stage('Update Kubernetes Manifests') {
+            steps {
+                sh '''
+                sed -i "s|image: .*furniro-backend:.*|image: ${REGION}-docker.pkg.dev/${GOOGLE_CLOUD_PROJECT}/${REPO}/${BACKEND_IMAGE}:${IMAGE_TAG}|" backend/deployment.yaml
+
+                sed -i "s|image: .*furniro-frontend:.*|image: ${REGION}-docker.pkg.dev/${GOOGLE_CLOUD_PROJECT}/${REPO}/${FRONTEND_IMAGE}:${IMAGE_TAG}|" frontend/deployment.yaml
+                '''
+            }
+        }
+
+        // ================= COMMIT =================
+        stage('Commit & Push CD Changes') {
+            steps {
+                withCredentials([ string(credentialsId: 'github-token', variable: 'GITHUB_TOKEN')]) 
+                {
+                sh """
+                    git config user.name "${GIT_USER_NAME}"
+                    git config user.email "ankuryadav8802@gmail.com"
+
+                    git add backend/deployment.yaml frontend/deployment.yaml
+
+                    if git diff --cached --quiet; then
+                        echo "No changes to commit"
+                    else
+                        git commit -m "Update images to ${IMAGE_TAG}"
+
+                        git push https://${TOKEN_APP_NAME}:${GITHUB_TOKEN}@github.com/${GIT_USER_NAME}/${GIT_REPO}.git HEAD:main
+                    fi
+                """
+                }
+            }
+        }
+
+
+        // ================= DONE =================
+        stage('Pipeline Complete') {
+            steps {
+                echo "CI/CD Pipeline completed successfully 🚀"
+            }
+        }
+    }
+}
